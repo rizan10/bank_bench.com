@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bank Management System</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #c3ecf5, #e0c3fc);
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    h1 {
+      color: #2e7d32;
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    .container, .login-box {
+      width: 90%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      padding: 20px 30px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      color: #1976d2;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline-color: #42a5f5;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 5px 0;
+      background-color: #42a5f5;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #1e88e5;
+    }
+
+    .account {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f1f8e9;
+      border-left: 5px solid #66bb6a;
+      border-radius: 8px;
+    }
+
+    #accountsList p {
+      color: #555;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏦 Bank Management</h1>
+<p style="margin-top: -10px; font-size: 1rem; color: #555;">
+  <em>BankBench — Student-built. Smart. Simple.</em>
+</p>
+
+  <!-- Login Page -->
+  <div class="login-box" id="loginBox">
+    <h2>Login</h2>
+    <input type="text" id="loginUser" placeholder="Account Number or Admin Username" />
+    <input type="password" id="loginPass" placeholder="Password" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- Main App -->
+  <div id="appUI" class="hidden">
+    <div class="container" id="createAccountContainer">
+      <h2>Create Account</h2>
+      <input type="text" id="accNumber" placeholder="Account Number" />
+      <input type="text" id="accHolder" placeholder="Account Holder Name" />
+      <input type="password" id="accPassword" placeholder="Set Password" />
+      <input type="number" id="initialBalance" placeholder="Initial Balance" />
+      <button onclick="createAccount()">Create Account</button>
+    </div>
+
+    <div class="container" id="transactionContainer">
+      <h2>Transaction</h2>
+      <input type="text" id="transAcc" placeholder="Account Number" />
+      <input type="number" id="amount" placeholder="Amount" />
+      <button onclick="deposit()">Deposit</button>
+      <button onclick="withdraw()">Withdraw</button>
+    </div>
+
+    <div class="container" id="transferContainer">
+      <h2>Transfer Money</h2>
+      <input type="text" id="fromAcc" placeholder="From Account Number" />
+      <input type="text" id="toAcc" placeholder="To Account Number" />
+      <input type="number" id="transferAmt" placeholder="Amount to Transfer" />
+      <button onclick="transfer()">Transfer</button>
+    </div>
+
+    <div class="container">
+      <h2>Accounts</h2>
+      <button onclick="displayAccounts()">Refresh</button>
+      <div id="accountsList"></div>
+    </div>
+  </div>
+
+  <script>
+    let accounts = JSON.parse(localStorage.getItem('accounts')) || {};
+    const ADMIN_USERNAME = "admin";
+    const ADMIN_PASSWORD = "1234";
+    let currentUser = null;
+    let isAdmin = false;
+
+    function login() {
+      const user = document.getElementById("loginUser").value.trim();
+      const pass = document.getElementById("loginPass").value;
+
+      if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
+        isAdmin = true;
+        currentUser = null;
+        showAppUI();
+        return;
+      }
+
+      if (accounts[user] && accounts[user].password === pass) {
+        isAdmin = false;
+        currentUser = user;
+        showAppUI();
+        return;
+      }
+
+      alert("❌ Invalid username or password.");
+    }
+
+    function showAppUI() {
+      document.getElementById("loginBox").classList.add("hidden");
+      document.getElementById("appUI").classList.remove("hidden");
+
+      document.getElementById("createAccountContainer").classList.toggle("hidden", !isAdmin);
+      document.getElementById("transactionContainer").classList.toggle("hidden", !isAdmin);
+      document.getElementById("transferContainer").classList.remove("hidden");
+
+      if (isAdmin) {
+        displayAccounts();
+      } else {
+        displayUserAccount(currentUser);
+      }
+    }
+
+    function createAccount() {
+      const accNumber = document.getElementById('accNumber').value.trim();
+      const accHolder = document.getElementById('accHolder').value.trim();
+      const accPassword = document.getElementById('accPassword').value.trim();
+      const initialBalance = parseFloat(document.getElementById('initialBalance').value);
+
+      if (!accNumber || !accHolder || !accPassword || isNaN(initialBalance)) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      if (accounts[accNumber]) {
+        alert('Account already exists.');
+        return;
+      }
+
+      accounts[accNumber] = {
+        name: accHolder,
+        password: accPassword,
+        balance: initialBalance,
+        transactions: []
+      };
+
+      saveAccounts();
+      alert('✅ Account created successfully!');
+      clearInputs('accNumber', 'accHolder', 'accPassword', 'initialBalance');
+      displayAccounts();
+    }
+
+    function deposit() {
+      const accNumber = document.getElementById('transAcc').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      if (!accounts[accNumber]) return alert('Account not found.');
+      if (isNaN(amount) || amount <= 0) return alert('Invalid amount.');
+
+      accounts[accNumber].balance += amount;
+      accounts[accNumber].transactions.push({ type: 'Deposit', amount });
+      saveAccounts();
+      alert('✅ Deposit successful!');
+      clearInputs('transAcc', 'amount');
+      displayAccounts();
+    }
+
+    function withdraw() {
+      const accNumber = document.getElementById('transAcc').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      if (!accounts[accNumber]) return alert('Account not found.');
+      if (isNaN(amount) || amount <= 0) return alert('Invalid amount.');
+      if (accounts[accNumber].balance < amount) return alert('Insufficient balance.');
+
+      accounts[accNumber].balance -= amount;
+      accounts[accNumber].transactions.push({ type: 'Withdrawal', amount });
+      saveAccounts();
+      alert('✅ Withdrawal successful!');
+      clearInputs('transAcc', 'amount');
+      displayAccounts();
+    }
+
+    function transfer() {
+      const from = document.getElementById('fromAcc').value.trim();
+      const to = document.getElementById('toAcc').value.trim();
+      const amt = parseFloat(document.getElementById('transferAmt').value);
+
+      if (!accounts[from] || !accounts[to]) return alert('Invalid account number(s).');
+      if (from === to) return alert('Sender and receiver must be different.');
+      if (isNaN(amt) || amt <= 0) return alert('Enter a valid amount.');
+      if (accounts[from].balance < amt) return alert('❌ Not enough balance.');
+
+      accounts[from].balance -= amt;
+      accounts[to].balance += amt;
+
+      accounts[from].transactions.push({ type: `Sent to ${to}`, amount: amt });
+      accounts[to].transactions.push({ type: `Received from ${from}`, amount: amt });
+
+      saveAccounts();
+      alert('✅ Transfer complete!');
+      clearInputs('fromAcc', 'toAcc', 'transferAmt');
+
+      isAdmin ? displayAccounts() : displayUserAccount(currentUser);
+    }
+
+    function displayAccounts() {
+      const list = document.getElementById('accountsList');
+      list.innerHTML = '';
+
+      for (let acc in accounts) {
+        const a = accounts[acc];
+        list.innerHTML += `
+          <div class="account">
+            <strong>Account #: ${acc}</strong><br/>
+            Name: ${a.name}<br/>
+            Balance: $${a.balance.toFixed(2)}<br/>
+            <button onclick="viewTransactions('${acc}')">View Transactions</button>
+          </div>
+        `;
+      }
+    }
+
+    function displayUserAccount(user) {
+      const acc = accounts[user];
+      const list = document.getElementById('accountsList');
+      list.innerHTML = `
+        <div class="account">
+          <strong>Account #: ${user}</strong><br/>
+          Name: ${acc.name}<br/>
+          Balance: $${acc.balance.toFixed(2)}<br/>
+          <button onclick="viewTransactions('${user}')">View Transactions</button>
+        </div>
+      `;
+    }
+
+    function viewTransactions(accountId) {
+      const acc = accounts[accountId];
+      const list = document.getElementById('accountsList');
+      list.innerHTML = `<h3>Transactions for ${accountId}</h3>`;
+
+      if (acc.transactions.length === 0) {
+        list.innerHTML += '<p>No transactions yet.</p>';
+        return;
+      }
+
+      acc.transactions.forEach(tx => {
+        list.innerHTML += `<p>${tx.type}: $${tx.amount.toFixed(2)}</p>`;
+      });
+    }
+
+    function saveAccounts() {
+      localStorage.setItem('accounts', JSON.stringify(accounts));
+    }
+
+    function clearInputs(...ids) {
+      ids.forEach(id => document.getElementById(id).value = '');
+    }
+  </script>
+</body>
+</html>
